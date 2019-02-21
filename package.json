@@ -1,0 +1,25 @@
+{
+  "name": "bookwork",
+  "version": "1.0.0",
+  "description": "Creates DATEV-File for Amazon",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ZaidoR1/bookwork.git"
+  },
+  "author": "Rene Kiupel",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ZaidoR1/bookwork/issues"
+  },
+  "homepage": "https://github.com/ZaidoR1/bookwork#readme",
+  "dependencies": {
+    "fast-csv": "^2.4.1",
+    "fs": "0.0.1-security",
+    "mkdirp": "^0.5.1"
+  }
+}
