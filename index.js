@@ -1,6 +1,5 @@
 var fs = require("fs")
 var csv = require("fast-csv")
-var mkdirp = require('mkdirp')
 
 // amazon.de, amazon.fr, ...
 const MARKETPLACE = 3
@@ -16,6 +15,8 @@ const TOTAL_ACTIVITY_VALUE_AMT_VAT_INCL = 51
 const TRANSACTION_CURRENCY_CODE = 52
 // DE, AT, CZ, ...
 const SALE_ARRIVAL_COUNTRY = 67
+// VAT (19%, 0%, ...)
+const PRICE_OF_ITEMS_VAT_RATE_PERCENT = 30
 
 // folder for amazon transaction files
 const DIR_AMAZON = "./amazon/";
@@ -25,52 +26,71 @@ const DIR_DATEV = "./datev/";
 var count = 0;
 var csvContent = [];
 
-// read amazon transaction file
-fs.readdirSync(DIR_AMAZON).forEach(file => {
-  console.log(`reading file "${file}"`)
-  if (!file.endsWith(".txt")) {
-    console.log(`skipping file "${file}"`)
-  }
+// get args (file name)
+// eg "node index.js /path/to/file"
+let arg = process.argv.slice(2);
+if (arg.length === 0) {
+  console.log("parameter missing: filename")
+  return;
+}
 
-  var stream = fs.createReadStream(DIR_AMAZON + file);
-  var csvStream = csv
-    .fromStream(stream, { delimiter: "\t" })
-    .on("data", data => {
-      // parse row
-      let csvRow = parseCsv(file, data);
-      if (csvRow) {
-        csvContent.push(csvRow);
-        console.log(csvContent.length)
-      }
-    })
-    .on("end", function () {
-      // create directory if not exists
-      mkdirp(DIR_DATEV)
+let filePathName = arg[0]
+console.log(`READ: \t"${filePathName}"`)
 
-      // write new csv (DATEV) file
-      fs.writeFileSync(DIR_DATEV + "DATEV_" + file.split(".")[0] + ".csv", csvContent.join("\n"))
+// open stream for file
+var csvStream = csv
+  .fromPath(filePathName, { delimiter: "\t" })
+  .on("data", data => {
+    // parse row
+    let csvRow = parseCsv(data);
+    if (csvRow) {
+      csvContent.push(csvRow);
+    }
+  })
+  .on("end", function () {
+    // write new csv (DATEV) file
+    let datevFile = "./DATEV_" + filePathName.replace(/^.*[\\\/]/, '');
+    datevFile = datevFile.substr(0, datevFile.lastIndexOf(".")) + ".csv";
+    fs.writeFileSync(datevFile, csvContent.join("\n"))
 
-      console.log(`finished file "${file}"`)
-    });
-})
+    // done
+    console.log(`DONE: \t"${filePathName}"`)
+    console.log(`WRITE: \t"${datevFile}"`)
+  });
 
-function parseCsv(file, data) {
+function parseCsv(data) {
   // just sales and refunds
   if (!(data[TRANSACTION_TYPE] === "SALE" || data[TRANSACTION_TYPE] === "REFUND")) {
     return;
   }
-
   count += 1;
-  console.log(
-    count.pad(3) + ":",
-    data[MARKETPLACE],
-    data[TRANSACTION_TYPE],
-    data[TRANSACTION_EVENT_ID],
-    data[TRANSACTION_COMPLETE_DATE],
-    data[TOTAL_ACTIVITY_VALUE_AMT_VAT_INCL],
-    data[TRANSACTION_CURRENCY_CODE],
-    data[SALE_ARRIVAL_COUNTRY]
-  );
+
+  // marketplace bookwork account (konto)
+  let marketplaceAccount = "";
+  switch (data[MARKETPLACE]) {
+    case "amazon.de": marketplaceAccount = 1202; break;
+    case "amazon.fr": marketplaceAccount = 1203; break;
+    case "amazon.it": marketplaceAccount = 1204; break;
+    case "amazon.es": marketplaceAccount = 1205; break;
+    case "amazon.co.uk": marketplaceAccount = 1206; break;
+  }
+
+  // default German VAT
+  // other EU VAT
+  let nv = "8400";
+  if (data[SALE_ARRIVAL_COUNTRY] !== "DE") {
+    // check if VAT 19% oder 0%
+    let vatGerman19Perc = parseFloat(data[PRICE_OF_ITEMS_VAT_RATE_PERCENT]) !== 0;
+
+    switch (data[SALE_ARRIVAL_COUNTRY]) {
+      case "AT": nv = vatGerman19Perc ? 8401 : 8129; break;
+      case "FR": nv = vatGerman19Perc ? 8402 : 8125; break;
+      case "IT": nv = vatGerman19Perc ? 8403 : 8126; break;
+      case "ES": nv = vatGerman19Perc ? 8404 : 8127; break;
+      case "GB": nv = vatGerman19Perc ? 8405 : 8128; break;
+      default: nv = vatGerman19Perc ? 8406 : 8130; break;
+    }
+  }
 
   // create line for DATEV file
   let newLine = [];
@@ -80,14 +100,14 @@ function parseCsv(file, data) {
   newLine.push("0")
   newLine.push("0")
   newLine.push("")
-  newLine.push("1202")
-  newLine.push("")
+  newLine.push(marketplaceAccount)
+  newLine.push(nv)
   newLine.push("0")
   newLine.push(parseInt(data[TRANSACTION_COMPLETE_DATE].split("-")[0]) + data[TRANSACTION_COMPLETE_DATE].split("-")[1])
   newLine.push(data[TRANSACTION_EVENT_ID])
   newLine.push("")
   newLine.push("0")
-  newLine.push(data[MARKETPLACE])
+  newLine.push(`${data[MARKETPLACE]} > ${data[SALE_ARRIVAL_COUNTRY]}`)
   newLine.push("0")
   newLine.push("")
   newLine.push("0")
@@ -97,12 +117,6 @@ function parseCsv(file, data) {
   newLine.push("")
   newLine.push("")
 
-  console.log(newLine.join(" ") + "\n")
+  console.log(`${count}: \t${newLine.join("\t")}`)
   return newLine.join(";");
-}
-
-Number.prototype.pad = function (size) {
-  var s = String(this);
-  while (s.length < (size || 2)) { s = "0" + s; }
-  return s;
 }

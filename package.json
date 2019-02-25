@@ -19,7 +19,6 @@
   "homepage": "https://github.com/ZaidoR1/bookwork#readme",
   "dependencies": {
     "fast-csv": "^2.4.1",
-    "fs": "0.0.1-security",
-    "mkdirp": "^0.5.1"
+    "fs": "0.0.1-security"
   }
 }
