@@ -2,9 +2,10 @@
   "name": "bookwork",
   "version": "1.0.0",
   "description": "Creates DATEV-File for Amazon",
-  "main": "index.js",
+  "main": "",
   "scripts": {
-    "start": "node index.js",
+    "amazon": "node amazon.js",
+    "paypal": "node paypal.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
