@@ -68,13 +68,16 @@ function parseCsv(data) {
   // }
   count += 1;
 
-  let amount = parseFloat(data[TOTAL_ACTIVITY_VALUE].replace(",", "."));
+  let amount = parseFloat(data[TOTAL_ACTIVITY_VALUE].replace(".", "").replace(",", "."));
   // let fees = parseFloat(data[PAYPAL_FEES].replace(".", "").replace(",", "."));
 
   let nv = "";
   if ((data[TRANSACTION_NAME].startsWith("Gutschrift PayPal (Europe)"))) {
     nv = 1201;
-  } else if ((data[TRANSACTION_NAME].startsWith("MasterCard Onlinekauf bei POSTPAY"))) {
+  } else if ((data[TRANSACTION_NAME].toLowerCase().startsWith("gutschrift amazon payments europe"))) {
+    nv = 1361;
+  } else if ((data[TRANSACTION_NAME].startsWith("MasterCard Onlinekauf bei POSTPAY"))
+  || (data[TRANSACTION_NAME].startsWith("MasterCard Onlinekauf bei Deutsche Post AG"))) {
     nv = 4910;
   } else if ((data[TRANSACTION_NAME].startsWith("MasterCard Onlinekauf bei") && amount < 0)
   || (data[TRANSACTION_NAME].startsWith("MasterCard Gutschrift in Höhe von") && amount > 0)) {
